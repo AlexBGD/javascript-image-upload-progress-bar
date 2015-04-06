@@ -1,16 +1,125 @@
 
-<!DOCTYPE html>
-<html>
-    <head>
-<title>JS Image upload progress bar</title>
-<script type="text/javascript" src="/js_upload.js"></script>
-</head>
-<body>
+<div class="tab-pane active" id="unos-slika-videa">
+     
+          <div style="overflow: auto;" class="span11 panel panel-info">
+        <div class="panel-heading">
+              <h3 class="panel-title">Unos fotografija</h3>
+        </div>
+              <div class="panel-body">
+                   <h2>Postavite fotografije. Fotografije veoma uticu na kvalitet vasih oglasa.</h2>  
+                   
+             <p>
+            Prva fotografija će biti postavljena kao glavna fotografija.Glavnu fotografiju mozete promeniti klikom na text Postavite kao glavnu. Oglasu možete dodati 10 fotografija.
+          
+            Ako imate bilo kakvih poblema prilikom dodavanja fotografija posetite nasu stranicu <a target="_blank" href="http://nadjinekretnine.com/moj-profil/pomoc-podrska" class="btn-link">Pomoc i podrska</a>.
+             </p>    
+ 
+  
+
+  <div id="js-bar"></div>
  
  
-</body>
-</html>        
+ 
+    </div>
+        
+       
+  
+        <div style="clear: both;margin-top: 50px;"></div>
+        
+            
+             
+        <button  id="image-go-to-tab1" class="btn btn-primary pull-left" href="#">
+    <i class='icon-circle-arrow-left icon-white'></i>  
+       Nazad
+   
+   </button>
+        <button id="go-to-settings" style="margin-right: 17px;" class="btn btn-primary arrow-right pull-right">
+       Sledeci korak
+   </button>
+                  
+    
+           
+              
+              
+              </div>
+    
+    </div>
+         
+
+          
+
+   <script>
+ function js_bar_call(){
+    
+  
+    var xhr = new XMLHttpRequest();
+
+    if ('onprogress' in xhr) {
+        
+
+     
+        
+        
+        
+        js_bar.init_html();
+        js_bar.max_filesize_MB=10;
+        js_bar.extension=['jpg','png','jpeg'];
+        js_bar.progress_holder='main-progress-holder';
+        js_bar.upload_limit=10;
+        js_bar.server_script='http://nadjinekretnine.com/ostavi-oglas/upload';
+        js_bar.onsuccess=function(e){
+            //console.log('success')
+        };
+        js_bar.oncancel=function(e){
+           //  console.log('cancel')
+        };
+        js_bar.onupload_error=function(e){
+          //  console.error('upload error')
+        };
+        
+            if (UPDATE_OGLAS) {
+                js_bar.update_list();
+          var dir='/img/oglasi_img/',
+          arr_img_num=[1,2,3,4,5,6,7,8,9,10],
+          slika,up_sl=[];
+          
+          for(var i=0;i<arr_img_num.length;i++){
+                slika=$('input[name="slika_'+arr_img_num[i]+'"]').val();
+                //console.log(slika)
+                if (slika) {++js_bar.images_num;
+                      js_bar.show_image({
+                           img:dir+slika,
+                           id:arr_img_num[i].toString()
+                       });
+                        
+                }
+           }
+      
+ }   
+        
+        
+        
+      
+    } else {
+       
+alert('Vas Internet pregledač je previse star. Molimo vas da instalirate neki moderni pregledač.')
                 
+    }
+  
+ 
+     
+ }
+ 
+
+
+
+
+
+
+ 
+ </script>
+
+
  
 
 
