@@ -1,74 +1,56 @@
 
- try {
-    var xhr = new XMLHttpRequest();
 
-    if ('onprogress' in xhr) {
-        // Browser supports W3C Progress Events
-    } else {
-        // Browser does not support W3C Progress Events
-    }
-} catch (e) {
-    // Browser is IE6 or 7
-}
- 
- 
- 
- 
- 
- 
- 
- var upload_progress={
+var js_bar={
      
      max_filesize_MB:10,
-     server_script:'http://nadjinekretnine.com/ostavi-oglas/upload',
+     server_script:null,
      extension:['jpg','png','jpeg'],
-     images_num:0,
+     ext_insensitive:true,
+     upload_limit:10,
      progress_holder:'main-progress-holder',
      errors:[],
-     ids:[1,2,3,4,5,6,7,8,9,10],
-     zauzeti_ids:[],
+     images_num:0,
+     main_div_id:"js-bar",
+     cancel:[],
+     error_templates:{
+        max_filesize_msg:"Maksimalna velicina slike je 10 MB.",
+        extension_msg:"Dozvoljene extenxzije su: jpg,png,jpeg",
+        upload_limit_msg:"Maksimalan broj slika po oglasu je 10."
+    },
+   
      
-     
-     get_free_positions:function(){
-         var that=this,
-                 arr=this.ids.filter(function(i){
-           return that.zauzeti_ids.indexOf(i)<0;
-       });
-       if (arr.length>10) {
-    throw 'ZAUZETIH POLJA IMA VISE OD DESET!';
-}
-return arr;
-     },
+     /**
+      * 
+      * @param {type} files
+      * @returns {js_bar.validation.images|Array}
+      * 
+      * 
+      * SLEDECE TRI METODE SLUZE ZA VALIDACIJU.
+      * Method validation vraca array sa fajlovima koji su prosli validaciju
+      * ili vraca prazan array
+      * 
+      * 
+      * 
+      * 
+      */
      
      
      validation:function(files){
-         if (!Array.isArray(this.extension)) {
+        /* if (!Array.isArray(this.extension)) {
              throw 'EXTENSION MUST BE ARRAY FORMAT! EXAMPLE:this.extension=["jpg","png"]';
-         }
+         }*/
          var images=[],
-                 i,x,
-                 files_length=files.length,
-                 ext_leng=this.extension.length,
-                 ext=this.extension;
-         
-         
-         
+                 i,
+                 files_length=files.length;
          for(i=0;i<files_length;i++){
-                 if (this.validation_type(files[i])&&this.validation_size(files[i])) {
-                        images.push(files[i])
+             if (this.validation_type(files[i])&&this.validation_size(files[i])) {
+                     images.push(files[i])
                   }
          }
- 
-         
-         
-        
          return images;
-         
-         
-         
      },
      
-      validation_type:function(file){ return true;
+      validation_type:function(file){   
              if (!('name' in file)) {
                  throw "FILE NAME IS NOT SET!";
              }  
@@ -76,49 +58,47 @@ return arr;
              if (this.extension.indexOf(ext)>-1) {
                     return true;
              }
-             this.errors.push('Dozvoljene extenzije su: '+this.extension.toString())
+             this.onerror('ext')
               return false;
      },
      
-    validation_size:function(file){ return true;
+    validation_size:function(file){  
          if (this.max_filesize_MB==-1) {
-             console.log('Image validation size is not definaid!');
+            // console.log('Image validation size is not definaid!');
             return true;
          }else if(!('size' in file)){
              throw 'SIZE IS NOT DEFINAID!';
          }
         // console.log(parseFloat(this.file_to_MB(file.size)))
          if (parseFloat(this.file_to_MB(file.size))>this.max_filesize_MB) {
-             this.errors.push('Maximalna velicina file je: '+this.max_filesize_MB+" MB")
+            this.onerror('size')
              return false;
          }
          return true;
-         
-         
-         
     },
+     //-----------------------------------------------------------------
      
      
      
      
-     
-     
+     /**
+      * 
+      * @param {object(array like)} el
+      * @returns {Boolean}
+      * 
+      * PUBLIC METHOOD poziva ga event onchange na input type="file"
+      * poziiva validaciju  i proverava da li ima jos mesta
+      * 
+      */
      
      onchange:function(el){
-        
-     
-        this.upload(el.files);
-      
- 
-     },
-     upload:function(file) {
+         var free_img=this.upload_limit-this.images_num,
+                 file=el.files;
+         this.errors=[];
          
-         
-         
-         var free_img=10-this.images_num,
-                 i;
          if (free_img===0) {
-            throw 'NEMA VISE SLOBODNIH MESTA!';
+            this.onerror('limit');
+            return false;
          }
          file=this.validation(file)
          
@@ -151,23 +131,34 @@ return arr;
              alert('Maximalni broj slika je 10!')
             }
             
-     //---------------------------------------------------------       
-          // console.log(file);
-           
-       
-       
-      
-         
-      
+     //---------------------------------------------------------    
+     this.update_list();
+        this.upload(file);
+     },
+     
+     
+     
+     /**
+      * 
+      * @param {type} file
+      * @returns {undefined}
+      * 
+      * 
+      * 
+      * PRAVI UPLOAD PROGRESS POZIVA  xhr...
+      * 
+      * 
+      * 
+      */
+     upload:function(file) { 
          var that=this,
                  id,
+                 i,
                  fd,
-                 xhr=new XMLHttpRequest();
-         
-      
-    
-      
-         for(i=0;i<file.length;i++){
+                 xhr=new XMLHttpRequest(),
+                 file_length=file.length,
+                 file_counter=0;
+         for(i=0;i<file_length;i++){
            
              ++this.images_num;
              xhr = new XMLHttpRequest();
@@ -177,12 +168,12 @@ return arr;
              fd.append("imageHTML5",file[i]);
              fd.append("imageHTML5_id",this.images_num);
              
-             /**
+             /*
               * infamous loop problem
               */
                 (function(id){
                      xhr.upload.addEventListener("progress", function(e){
-                     var percentComplete = Math.round(e.loaded * 100 / e.total),
+                         var percentComplete = Math.round(e.loaded * 100 / e.total),
                                  progress_bar=document.getElementById('progress_bar_'+id);
                              progress_bar.style.width=percentComplete.toString()+"%";
                              progress_bar.innerHTML=percentComplete.toString()+"%";
@@ -191,41 +182,64 @@ return arr;
                 //-----------------------------------------
                 
                  xhr.addEventListener("load", function(e){
-                   // console.log(e.target.responseText);
-                    var data=JSON.parse(e.target.responseText);
+                  var data=JSON.parse(e.target.responseText);
                           that.show_image(data);
-                         // that.remove_progress_bar(data.id);
+                          that.remove_progress_bar(data.id);
+                          that.onsuccess(e);
+                          if (++file_counter===file_length) { that.update_list(); }
                  }, false);
-                 xhr.addEventListener("error", function(e){
-                            console.log('error',e);
-                        
+                
+                (function(id){
+                    xhr.addEventListener("error", function(e){
+                            that.onupload_error(e)
                             that.remove_progress_bar(id);
+                            if (++file_counter===file_length) { that.update_list(); }
                  }, false);
-                 xhr.addEventListener("abort", function(e){
-                           console.log('abort',e)
+                })(that.images_num);
+                 
+                 (function(id){
+                    xhr.addEventListener("abort", function(e){
+                        var sortable=that.by_id('sortable');
+                        sortable.removeChild(that.by_data_attr(id))
+                        sortable.appendChild(that.create_el('li',{
+                                 className:'fake-sortable',
+                                 style:{
+                                     width:'100px'
+                                 }
+                             }));
+                    
+                     that.ajax_delete_img(function(){
+                                that.images_num--;
+                            }); 
+                           that.oncancel(e);
                            that.remove_progress_bar(id);
-                 }, false);
+                         if (++file_counter===file_length) { that.update_list(); }
+                 }, false); 
+                 })(that.images_num);
+                 
+                 
+                 
+                 
+                 
                  xhr.open("POST", that.server_script,true);
                  xhr.send(fd);
-             
-             
-            
-             
-             
          }
-         // console.log(clone_free);
-       
       this.update_list();
       },
       
       
-      
+      /**
+       * 
+       * @param {type} id
+       * @returns {Boolean|js_bar.by_data_attr.childs|document@call;getElementById.children}
+       * VRACA EL po data attributu
+       */
       by_data_attr:function(id){
          var sortable=this.by_id('sortable'),
                  i,
-                 childs=sortable.children;
-         for(i=0;childs.length;i++){
-             
+                 childs=sortable.children; 
+         for(i=0;i<childs.length;i++){
+             //console.log(childs[i]);
              if (childs[i].getAttribute("data-id")==id) {
                  return childs[i]
 }
@@ -241,6 +255,25 @@ return arr;
       by_id:function(id){
         return document.getElementById(id);  
       },
+      
+      
+  
+      
+      
+      
+      
+      
+      
+      
+      
+      /**
+       * 
+       * @param {type} progress_id
+       * @returns {undefined}
+       * 
+       * BRISE DOM ELEMENT KOJI SADRZI  PROGRESS BAR DIV 
+       * UZ POMOC JQUERY ANIMACIJE
+       */
       remove_progress_bar:function(progress_id){ 
           var that=this;
           
@@ -250,29 +283,30 @@ return arr;
              that.by_id(that.progress_holder).removeChild(that.by_id('progress-hodler-id_'+progress_id));
         },1000);*/
       },
-
+      /**
+       * 
+       * @param {type} data
+       * @returns {undefined}
+       * PRIKAZUJE SLIKU U JQUERY UI  sortable drag and drop listi
+       * 
+       * 
+       */
         show_image:function(data){
-           // data=JSON.parse(data);
-            var el=this.by_data_attr(data.id)/*el=document.getElementById('image'+data.id)*/,
-                    img=document.createElement('img'),
-                    a=document.createElement('a'),
-                    that=this,
-                    del;
-            if (!el) {
-    throw 'CANNOT FIND ELEMENT BY DATA ATTRIBUTE!'
-}
-            img.src=data.img;
-            img.style['max-height']="80px";
-            el.className="ui-state-default";
-            a.href="#";
-            a.onclick=function(e){
-                e.preventDefault();
-                that.postavi_kao_glavnu(el);
-                return false;
-            };
-             a.innerHTML='Postavi kao glavnu';
+             var el=this.by_data_attr(data.id),
+                    that=this,del;
+             if (!el) {throw 'CANNOT FIND ELEMENT BY DATA ATTRIBUTE!';}
+             el.className="ui-state-default";
+             el.setAttribute('data-src',data.img)
              del=this.create_el('a',{
                 href:"#",
+                style:{
+                    'position':'absolute',
+                    'top':'-2px',
+                    right:'-2px',
+                    'font-size':'13px',
+                    color:'#313131',
+                   'background-color':'white'
+                },
                 onclick:function(e){
                     e.preventDefault();
                     
@@ -288,47 +322,81 @@ return arr;
                                  }
                              }));
                              
-                             that.images_num--;
+                             
                              that.update_list();
-                    return false;
+                             
+                            that.ajax_delete_img(function(){
+                                that.images_num--;
+                            }); 
+                        return false;
                 }
              });
             del.appendChild(this.create_el('i',{
                 className:"fa fa-times",
                 title:'Obrisi sliku',
-                style:{
-                    'position':'absolute',
-                    'top':'-2px',
-                    right:'-2px',
-                    'font-size':'15px',
-                    color:'red',
-                   'background-color':'white'
-                }
-            }))
+                
+            }));
+         //   del.style.position='absolute'
             el.appendChild(del)
-            el.appendChild(img);
-            el.appendChild(a);
-            this.update_list();
+            el.appendChild(this.create_el('img',{
+                src:data.img,
+                style:{
+                    'max-height':"80px"
+                }
+            }));
+            el.appendChild(this.create_el('a',{
+                href:"#",
+                innerHTML:'Postavi kao glavnu',
+                onclick:function(e){
+                     e.preventDefault();
+                     that.postavi_kao_glavnu(el);
+                     return false;
+                }
+            
+            }));
+           // this.update_list();
         },
         
-        
-        swapNodes:function(node1, node2) {
-           // console.log(node1,node2);
-   var node2_copy = node2.cloneNode(true);
-    node1.parentNode.insertBefore(node2_copy, node1);
-    node2.parentNode.insertBefore(node1, node2);
-    node2.parentNode.replaceChild(node2, node2_copy);
-},
+        /**
+         * 
+         * @param {type} node1
+         * @param {type} node2
+         * @returns {undefined}
+         * 
+         * 
+         * RADI REPLACE NODOVA u jquery ui drag and drop sortable listi
+         * manja li elemente posle brisanja itd...
+         */
+         swapNodes:function(node1, node2) {
+                var node2_copy = node2.cloneNode(true);
+                node1.parentNode.insertBefore(node2_copy, node1);
+                node2.parentNode.insertBefore(node1, node2);
+                node2.parentNode.replaceChild(node2, node2_copy);
+         },
 
 
-
+         ajax_delete_img:function(callback){
+           var fd=new FormData();
+                             fd.append('token-delete',new Date().getTime()); 
+                            var  xhr = new XMLHttpRequest();
+                              xhr.open("POST", 'http://nadjinekretnine.com/ostavi-oglas/del-image',true);
+                              xhr.onreadystatechange=function(){
+                                    if (xhr.readyState==4 && xhr.status==200) {callback(); }
+                              }
+                              xhr.send(fd);  
+         },
 
         /**
          * 
          * @returns {Boolean}
          * 
          * 
-         * replace sapan and A tags and their text
+         * RESETUJE CELU LISTU
+         * MENJA TEXT I TAGOVE U SORTABLE JQUERY UI LISTI,
+         * resetuje data-id u li elementu sotrable liste da uvek idu po redu
+         * da bih se znalo koliko ima slobodnih mesta,
+         * i da bih se uploadovale slike po redu
+         * Resetuje text ispod liste (Glavna slika i Postavi kao glavnu)
          * 
          * 
          */
@@ -386,23 +454,37 @@ return arr;
         
         
                 create_el:function(el,attr){
-          var el=document.createElement(el);      
-             for(var i in attr){
+          var el=document.createElement(el),
+                  x,
+                  i;
+             for(i in attr){
                  if (i=='style') {
-                     for(var x in attr[i]){
-                          el[i][x]=attr[i][x];
-                          continue;
+                     for(x in attr[i]){ 
+                          el.style[x]=attr[i][x];
                      }
+                 }else{
+                     el[i]=attr[i]
                  }
-                 el[i]=attr[i]
+                 
              }
+           //  console.log(el);
              return el;
     },
         
         
         
 
-        
+        /**
+         * 
+         * @param {type} el
+         * @returns {Boolean}
+         * 
+         * replace dva noda posle klika na postavi kao glavnu;
+         * npr.
+         * kada se klikne na "postavi kao glavnu" taj node menja za mesto u sortable listi
+         * za node koji je prvi i zatim update listu
+         * 
+         */
         postavi_kao_glavnu:function(el){ 
             this.swapNodes(this.by_id('sortable').firstElementChild,el);
              this.update_list(); 
@@ -410,50 +492,56 @@ return arr;
         },
         
         
-        remove_image_from_list:function(id){
-            
-            
-            
-            
-            
-        },
-      
+    /**
+     * 
+     * @param {type} filename
+     * @param {type} filesize
+     * @param {type} id
+     * @param {type} xhr
+     * @returns {undefined}
+     * 
+     * pravi progress bar sa sve onclick i cancel upload
+     * 
+     * 
+     * 
+     * 
+     */
       
       create_progress:function(filename,filesize,id,xhr){
           filename=filename.length>6?filename.substr(0,4)+"..."+filename.substr(-3):filename;
-          filesize=this.file_to_MB(filesize)+" MB"
+          filesize=this.file_to_MB(filesize)+" MB";
+          var that=this;
           
+          var holder=this.create_el('div',{
+              className:"progress-holder custom_progress-holder",
+              id:'progress-hodler-id_'+id
+          });
+        
+          holder.appendChild(this.create_el('span',{
+              className:'pull-left',
+              id:'file_name_'+id,
+              innerHTML:filename
+          })); 
+          holder.appendChild(this.create_el('span',{
+              className:'pull-right',
+              id:'file_size_'+id,
+              innerHTML:filesize
+          }));
+          holder.appendChild(this.create_el('div',{className:"clearfix"}));
           
-          
-          
-          
-          var holder=document.createElement('div');
-          holder.className='progress-holder custom_progress-holder';
-          holder.id='progress-hodler-id_'+id;
-          var name=document.createElement('span');
-          name.className="pull-left";
-          name.id='file_name_'+id;
-          name.innerHTML=filename;
-          holder.appendChild(name);
-          var size=document.createElement('span');
-          size.className="pull-right";
-          size.id='file_size_'+id;
-          size.innerHTML=filesize
-          holder.appendChild(size);
-          
-          
-          var clearx=document.createElement('div');
-          clearx.className='clearfix';
-          holder.appendChild(clearx);
-          
-          var progress=document.createElement('div');
-          progress.className='progress progress-success progress-striped';
-          progress.style['margin-bottom']='0';
-          var bar=document.createElement('div');
-          bar.className='bar';
-          bar.id='progress_bar_'+id;
-          bar.style['margin-bottom']='0';
-          progress.appendChild(bar);
+          var progress=this.create_el('div',{
+              className:'progress progress-success progress-striped',
+              style:{
+                  'margin-bottom':'0'
+              }
+          });
+          progress.appendChild(this.create_el('div',{
+              className:"bar",
+              id:'progress_bar_'+id,
+              style:{
+                  'margin-bottom':'0'
+              }
+          }));
           holder.appendChild(progress);
           holder.appendChild(this.create_el('a',{
               style:{
@@ -469,12 +557,14 @@ return arr;
     href:"#" ,
     title:"Prekinite učitavanje fotografije!"
         }))
-          document.getElementById(this.progress_holder).appendChild(holder);
+          this.by_id(this.progress_holder).appendChild(holder);
           
       },
       
-        chosse_images:function(){
-         $("#fileToUpload").click()
+        chosse_images:function(){//console.log('click');
+          // this.by_id('fileToUpload').click();
+           $("#fileToUpload").trigger('click')
+            //  $("#fileToUpload").click()
      },
      
      
@@ -486,18 +576,11 @@ return arr;
      file_to_MB:function(size){
         return (Math.round(size * 100 / (1024 * 1024)) / 100)
      },
-     validate_file_size:function(size){
-         if (size>this.max_filesize_MB) {
-             console.log('file is NOT valide');
-         }else{
-             console.log('file size is valiid')
-         }
-     },
+   
       
       
       
       jquery_animate:function(id){
-          
            $( "#"+id ).hide( 'highlight', {}, 2000, setTimeout(function() {
         $( "#"+id ).remove();
       }, 2000 ) );
@@ -505,15 +588,147 @@ return arr;
           
           
           
+    },
+      
+      
+      
+      
+      /*
+       * 
+       * public mehtods
+       * custom events
+       * 
+       * 
+       */
+      onsuccess:function(e){},
+      onupload_error:function(e){},
+      oncancel:function(e){},
+      onerror:function(err){
+            switch(err){
+        case "size":
+            alert(this.error_templates.max_filesize_msg);
+            break;
+        case "ext":
+            alert(this.error_templates.extension_msg);
+            break;
+        case "limit":
+            alert(this.error_templates.upload_limit_msg);
+            break;
+        default:throw 'NEPOZNATA GRESKA U onerror callback'
     }
+      },
+     //======================================================
+     
+     
+     
+     
+     
       
-      
-      
-      
-      
-      
-      
-      
-      
+      init_html:function(){
+          var main=this.by_id(this.main_div_id),
+                  i,
+                  that=this,
+                  form;
+          if (!main) { throw 'MAIN DIV DO NOT EXIST!';}
+        
+        var list=this.create_el('ul',{
+            id:'sortable',
+            style:{
+                'margin-bottom': '20px',
+                'overflow': 'auto'
+            }
+        });
+        for(i=0;i<this.upload_limit;i++){
+            list.appendChild(this.create_el('li',{
+                'data-id':(i+1),
+                className:'fake-sortable'
+            }));
+        }
+        
+        main.appendChild(list);
+        main.appendChild(this.create_el('div',{className:"clearfix"}));
+        main.appendChild(this.create_el('button',{
+            href:"#",
+            className:"btn btn-large btn-danger",
+            innerHTML:'Izaberite slike <i class="fa fa-file-image-o"></i>',
+            type:"button",
+            onclick:function(){
+               return  that.chosse_images()
+            }
+        }));
+        main.appendChild(this.create_el('div',{className:"clearfix"}));
+        main.appendChild(this.create_el('div',{
+            id:"main-progress-holder",
+            className:"span4",
+            style:{
+                margin:"30px 0"
+            }
+        }));
+         
+         
+         form=this.create_el('form',{
+            // enctype:'multipart/form-data',
+           // method:'post',
+             'data-test':'form',
+             className:'hide-opera',
+           /*  style:{
+                // 'display':'none'
+             }*/
+         });
+         form.appendChild(this.create_el('input',{
+             accept:'image/*',
+             type:'file',
+             name:'filetoupload',
+             multiple:'multiple',
+             id:'fileToUpload',
+             onchange:function(){
+                that.onchange(this);
+             }
+         }));
+         main.appendChild(form);
+         
+        
+      },
+   
+     
+     
+     
+     
+     
+     get_images_names:function(){
+         this.update_list()
+         var sortable=this.by_id('sortable'),
+                 i,
+                 childs=sortable.children, 
+                 data,
+                 num=1;
+                 
+                 for(i=0;i<childs.length;i++){
+                     data=childs[i].getAttribute('data-src');
+                     if (data) {
+                         this.by_id('slika_'+num).value=data.slice(data.lastIndexOf('/',15)+1)
+                       //  ++num; 
+                      }else{
+                          this.by_id('slika_'+num).value="";
+                          
+                      }
+                      ++num;
+                 }
+         return;
+         
+         
+     },
+     
+     
+     
+     
+     
+     
+     
+     
+     
+     
+     
      
  };
+
